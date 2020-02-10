@@ -52,7 +52,9 @@ html, body {
 
 .map {
   z-index: -1;
-  position: absolute;
+  min-width: 100vh;
+  min-height: calc(100vh - 57px);
+  background-color: blanchedalmond;
 }
 
 @media (min-width: 1200px) { 

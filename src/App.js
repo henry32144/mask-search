@@ -58,13 +58,38 @@ class RefreshButton extends React.Component {
 
 function ToggleButton(props) {
   const decoratedOnClick = useAccordionToggle(props.eventKey, () =>
-    console.log('totally custom!'),
+  props.onAccordianToogle()
   );
 
   return (
     <Button variant="light" className="toogle-button border-0" type="button" onClick={decoratedOnClick}>
       <FaBars size={props.iconSize}/> {props.children}
     </Button>
+  );
+}
+
+function CustomTypeahead(props) {
+  const decoratedOnClick = useAccordionToggle(props.eventKey, () =>
+    props.onAccordianToogle()
+  );
+
+  return (
+      <Typeahead
+        id="id"
+        labelKey="label"
+        options={props.options}
+        placeholder="以店名或縣市來搜尋"
+        className="border-right-0"
+        onChange={(selected) => {
+          if (selected != null && selected.length > 0) {
+            props.onSearchSelected(selected);
+            if (props.isAccordianOpen == false) {
+              decoratedOnClick();
+            }
+          }
+        }}
+        selected={props.selected}
+      />
   );
 }
 
@@ -98,7 +123,9 @@ class SideNavBar extends Component {
   constructor(props) {
     super(props);
     this.setBarExpand = this.setBarExpand.bind(this);
-    this.state = {barExpand: true};
+    this.onSearchSelected = this.onSearchSelected.bind(this);
+    this.onAccordianToogle = this.onAccordianToogle.bind(this);
+    this.state = {barExpand: true, selected: null, isAccordianOpen: false};
   }
 
   setBarExpand(value) {
@@ -108,8 +135,22 @@ class SideNavBar extends Component {
     });
   }
 
+  onSearchSelected(selected) {
+    if (selected != null && selected.length > 0) {
+      this.setState({selected: selected});
+      console.log(selected[0]);
+    }
+  }
+
+  onAccordianToogle() {
+    console.log('onAccordianToogle');
+    this.setState(state => ({
+      isAccordianOpen: !state.isAccordianOpen
+    }));
+  }
+
   render() {
-    const numbers = [1,2,3,4,5,2,3,4,5,2,3,4,5,2,3,4,5];
+    const numbers = [];
     var options = [
       {id: 1, label: '台北市'},
       {id: 2, label: '台南市'},
@@ -118,21 +159,21 @@ class SideNavBar extends Component {
     ];
     return (
       <div className="side-navbar">
-        <Accordion defaultActiveKey="0">
+        <Accordion>
           <Form className="py-3 d-flex justify-content-center">
             <InputGroup>
-              <Typeahead
-                id="id"
-                labelKey="label"
-                options={options}
-                placeholder="以店名或縣市來搜尋"
-                className="border-right-0"
-              />
+              <CustomTypeahead 
+                eventKey="0"
+                options={options} 
+                selected={this.state.selected}
+                onSearchSelected={this.onSearchSelected}
+                isAccordianOpen={this.state.isAccordianOpen}
+                onAccordianToogle={this.onAccordianToogle} />
               <InputGroup.Append>
                 <RefreshButton iconSize={this.props.iconSize}/>
               </InputGroup.Append>
             </InputGroup>
-            <ToggleButton eventKey="0" iconSize={this.props.iconSize}/>
+            <ToggleButton eventKey="0" iconSize={this.props.iconSize} onAccordianToogle={this.onAccordianToogle}/>
           </Form>
           <Accordion.Collapse eventKey="0">
             <div className="side-menu-area">
@@ -159,15 +200,9 @@ class MainContents extends Component {
     return (
       <div>
         <SideNavBar iconSize={this.props.iconSize}/>
-        <Container fluid>
-          <Row>
-            <Col xl="12" md="12" xs="12">
-              <div className="map">
-                <Map/>
-              </div>
-            </Col>
-          </Row>
-        </Container>
+        <div className="map">
+          <Map/>
+        </div>
       </div>
     )
   }
