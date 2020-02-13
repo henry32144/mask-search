@@ -9,7 +9,11 @@ html, body {
 }
 
 .navbar {
-  z-index: 1;
+  z-index: 1000;
+}
+
+.topnav-brand {
+  line-height: normal;
 }
 
 .top-nav-items {
@@ -26,14 +30,15 @@ html, body {
   position: fixed;
   width: 25%;
   height: 70.66px;
-  z-index: 1;
+  z-index: 1000;
 }
 
 
 .side-navbar-toogle-button {
-  height: 70.66px;
-  position: absolute;
-  left: 100%;
+  display: inline-block;
+  padding-top: .3125rem;
+  padding-bottom: .3125rem;
+  margin-right: .5rem;
 }
 
 .side-navbar-expand-button {
@@ -75,6 +80,40 @@ html, body {
   height: calc(100vh - 56.66px);
 }
 
+.county-mask-popup{
+  text-align: center;
+}
+
+.county-mask-popup > caption{
+  caption-side: top;
+  text-align: center;
+}
+
+.info {
+  padding: 6px 8px;
+  font: 14px/16px Arial, Helvetica, sans-serif;
+  background: white;
+  background: rgba(255,255,255,0.8);
+  box-shadow: 0 0 15px rgba(0,0,0,0.2);
+  border-radius: 5px;
+}
+.info h4 {
+  margin: 0 0 5px;
+  color: #777;
+}
+
+.legend {
+  line-height: 18px;
+  color: #555;
+}
+.legend i {
+  width: 18px;
+  height: 18px;
+  float: left;
+  margin-right: 8px;
+  opacity: 0.7;
+}
+
 @media (min-width: 1200px) { 
   .side-navbar-content {
       width: 100%;
@@ -96,10 +135,7 @@ html, body {
     width: 100%;
   }
 
-  .side-navbar-toogle-button {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    z-index: 1;
+  .leaflet-top .leaflet-control {
+    margin-top: 80.66px;
   }
 }

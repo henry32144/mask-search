@@ -1,14 +1,15 @@
 import React, { Component, useRef, useState} from 'react';
-import { CSSTransition } from 'react-transition-group';
+import ReactDOMServer from "react-dom/server";
+
+import { motion } from "framer-motion"
 import logo from './logo.svg';
 import './App.css';
 import '../node_modules/leaflet/dist/leaflet.css'
 
-// Json datas
-import countyLatLng from '../temp_data/county_latlng.json';
-import geoJsonData from '../temp_data/twCounty2010merge.geo.json';
-
-import countyRemaining from '../temp_data/county_remaining.json';
+// Json data
+import countyLatLng from '../data/county_latlng.json';
+import geoJsonData from '../data/twCounty2010merge.geo.json';
+import countyRemaining from '../data/county_remaining.json';
 
 import Col from 'react-bootstrap/Col';
 import Row from 'react-bootstrap/Row';
@@ -22,7 +23,7 @@ import ListGroup from 'react-bootstrap/ListGroup';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
 import FormControl from 'react-bootstrap/FormControl';
-import Overlay from 'react-bootstrap/Overlay';
+import Table from 'react-bootstrap/Table';
 import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import Collapse from 'react-bootstrap/Collapse'
 import Accordion from 'react-bootstrap/Accordion';
@@ -47,7 +48,7 @@ function GeoLocationErrorModal(props) {
       </Modal.Header>
       <Modal.Body>
         <p>
-          {props.errorText}
+          {props.geoErrorText}
         </p>
       </Modal.Body>
       <Modal.Footer>
@@ -61,7 +62,10 @@ class TopNavBar extends Component {
   render() {
     return (
       <Navbar bg="dark" variant="dark" expand="lg">
-        <Navbar.Brand href="#home">口罩地圖</Navbar.Brand>
+        <Button variant="outline-dark" variant="dark" type="button" className="side-navbar-toogle-button" onClick={this.props.toggleSideBarExpand}>
+          <FaBars size={this.props.iconSize}/>
+        </Button>
+        <Navbar.Brand href="#home" className="topnav-brand">口罩地圖</Navbar.Brand>
           <Nav className="ml-auto top-nav-items">
             <Nav.Link href="#info"><FaInfoCircle size={this.props.iconSize}/></Nav.Link> 
             <Nav.Link href="#github"><FaGithub size={this.props.iconSize}/></Nav.Link>
@@ -80,17 +84,6 @@ class LocateButton extends React.Component {
       </Button>
     )
   }
-}
-
-function ToogleSideBarButton(props) {
-  const decoratedOnClick = useAccordionToggle(
-    props.eventKey
-  );
-  return (
-    <Button variant="light" className="side-navbar-expand-button" type="button" onClick={decoratedOnClick}>
-      <FaBars size={props.iconSize}/> {props.children}
-    </Button>
-  );
 }
 
 function ExpandSideBarButton(props) {
@@ -160,19 +153,11 @@ class SideNavBar extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      isBarExpand: true,
       selected: null,
       isAccordianOpen: false
     };
-    this.toogleBarExpand = this.toogleBarExpand.bind(this);
     this.onSearchSelected = this.onSearchSelected.bind(this);
     this.toogleAccordian = this.toogleAccordian.bind(this);
-  }
-
-  toogleBarExpand() {
-    this.setState(state => ({
-      isBarExpand: !state.isBarExpand
-    }));
   }
 
   onSearchSelected(selected) {
@@ -198,14 +183,13 @@ class SideNavBar extends Component {
       {id: 4, label: '桃園市'},
     ];
     return (
-      <div className="side-navbar">
-      <CSSTransition
-        in={this.state.isBarExpand}
-        timeout={{
-          enter: 500,
-          exit: 300,
+      <motion.div
+        className="side-navbar"
+        animate={this.props.isSideBarExpand ? "open" : "closed"}
+        variants={{
+          open: { opacity: 1, x: 0 },
+          closed: { opacity: 0.5, x: "-100%" },
         }}
-        classNames="side-navbar-transition"
       >
       <div className="side-navbar-content">
         <Accordion>
@@ -237,29 +221,64 @@ class SideNavBar extends Component {
           </Accordion.Collapse>
         </Accordion>
       </div>
-      </CSSTransition>
-      <Button 
-        className="side-navbar-toogle-button"
-        onClick={this.toogleBarExpand}
-      />
-      </div>
+      </motion.div>
     )
   }
+}
+
+function CountyMaskPopup(props) {
+  return (
+    <Table striped bordered responsive size="sm" className="county-mask-popup">
+      <caption>{props.countyName}</caption>
+      <tr>
+        <th>成人口罩剩餘</th>
+        <th>兒童口罩剩餘</th>
+      </tr>
+      <tr>
+        <td>{props.adultMask}</td>
+        <td>{props.childMask}</td>
+      </tr>
+    </Table>
+  )
+}
+
+function CountyMaskLegend(props) {
+  var valueDegrees = props.valueDegrees;
+
+  var legendItems = []
+  for (var i = 0; i < valueDegrees.length; i++) {
+    legendItems.push(
+      <div key={"legend-" + i}>
+        <i style={{background: props.getColor(valueDegrees[i] + 1)}}></i>
+        {valueDegrees[i] + (valueDegrees[i + 1] ? '&ndash;' + valueDegrees[i + 1] + '<br/>' : '+')}
+      </div>
+    );
+  }
+
+  return (
+    <div className="legend info">
+      {legendItems}
+    </div>
+  )
 }
 
 class Map extends React.Component {
   constructor(props) {
     super(props);
+    this.colors = ['#d7191c', '#fdae61', '#ffffbf', '#a6d96a', '#1a9641'];
+    this.valueDegrees = [0, 5000, 10000, 15000, 20000]
     this.getColor = this.getColor.bind(this);
     this.drawStyle = this.drawStyle.bind(this);
+    this.showPopup = this.showPopup.bind(this);
+    this.setCountiesLegend = this.setCountiesLegend.bind(this);
   }
 
   getColor(d) {
-    return d > 20000 ? '#1a9641' :
-           d > 15000  ? '#a6d96a' :
-           d > 10000  ? '#ffffbf' :
-           d > 5000  ? '#fdae61' :
-                      '#d7191c';
+    return d > this.valueDegrees[4] ? this.colors[4] :
+           d > this.valueDegrees[3]  ? this.colors[3] :
+           d > this.valueDegrees[2]  ? this.colors[2] :
+           d > this.valueDegrees[1]  ? this.colors[1] :
+           this.colors[0];
   }
 
   drawStyle(feature) {
@@ -275,10 +294,30 @@ class Map extends React.Component {
     };
   }
 
+  showPopup(layer) {
+    var countyName = layer.feature.properties.COUNTYNAME.substring(0, 2);
+    var data = countyRemaining[countyName]["adult_mask"];
+    return (ReactDOMServer.renderToString(
+      <CountyMaskPopup
+        countyName={layer.feature.properties.COUNTYNAME}
+        adultMask={data}
+        childMask={data}
+      />
+    ))
+  }
+
+  setCountiesLegend(map) {
+    return (ReactDOMServer.renderToString(
+      <CountyMaskLegend
+        valueDegrees={this.valueDegrees}
+        getColor={this.getColor}
+      />
+    ))
+  }
+
   componentDidMount() {
-    console.log(countyLatLng);
     // create map
-    this.map = L.map('map', {
+    var map = L.map('map', {
       center: [this.props.userLatitude, this.props.userLongitude],
       zoom: 8,
       zoomControl: false,
@@ -290,7 +329,49 @@ class Map extends React.Component {
         }),
       ],
     });
-    L.geoJSON(geoJsonData, {style: this.drawStyle}).addTo(this.map)
+
+    var geoJsonLayer = L.geoJSON(geoJsonData, {style: this.drawStyle})
+    geoJsonLayer.bindPopup(this.showPopup);
+    var legend = L.control({position: 'bottomright'});
+    legend.onAdd = (map) => {
+        var div = L.DomUtil.create('div', 'info legend');
+        // loop through our density intervals and generate a label with a colored square for each interval
+        for (var i = 0; i < this.valueDegrees.length; i++) {
+            div.innerHTML +=
+                '<i style="background:' + this.getColor(this.valueDegrees[i] + 1) + '"></i> ' +
+                this.valueDegrees[i] + (this.valueDegrees[i + 1] ? '&ndash;' + this.valueDegrees[i + 1] + '<br>' : '+');
+        }
+        return div;
+    };
+    legend.addTo(map);
+
+    var overlayLayers = L.layerGroup([geoJsonLayer]);
+    overlayLayers.addTo(map);
+
+    var overlayMaps = {
+      "縣市剩餘數量": overlayLayers,
+    };
+
+    var mapControlPanel = L.control.layers(null, overlayMaps)
+    mapControlPanel.addTo(map);
+
+    map.on('overlayadd', function (eventLayer) {
+      // Switch to the Population legend...
+      if (eventLayer.name === '縣市剩餘數量') {
+        legend.addTo(this);
+      } 
+    });
+    map.on('overlayremove', function (eventLayer) {
+      // Switch to the Population legend...
+      if (eventLayer.name === '縣市剩餘數量') {
+          this.removeControl(legend);
+      } 
+    });
+
+    this.setState({
+      map: map,
+      geoJsonLayer: geoJsonLayer
+    })
   }
 
   render() {
@@ -305,6 +386,7 @@ class MainContents extends Component {
         <SideNavBar 
           iconSize={this.props.iconSize}
           getLocation={this.props.getLocation}
+          isSideBarExpand={this.props.isSideBarExpand}
         />
         <Map
           userLatitude={this.props.userLatitude}
@@ -321,13 +403,21 @@ class App extends Component {
     this.state = {
       iconSize : 20,
       modalShow : false,
+      isSideBarExpand: true,
       userLatitude : 23.583234,
       userLongitude : 120.5825975,
       geoLocationErrorText : '您的瀏覽器不支援座標取得功能',
     };
+    this.toggleSideBarExpand = this.toggleSideBarExpand.bind(this);
     this.handleModalShow = this.handleModalShow.bind(this);
     this.getLocation = this.getLocation.bind(this);
     this.handleLocationError = this.handleLocationError.bind(this);
+  }
+
+  toggleSideBarExpand() {
+    this.setState(state => ({
+      isSideBarExpand: !state.isSideBarExpand
+    }));
   }
 
   handleModalShow(show) {
@@ -379,19 +469,23 @@ class App extends Component {
     return (
       <div className="app">
         <div className="top-navbar">
-          <TopNavBar iconSize={this.state.iconSize}/>
+          <TopNavBar 
+            iconSize={this.state.iconSize}
+            toggleSideBarExpand={this.toggleSideBarExpand}
+          />
         </div>
         <div className="main-contents">
           <MainContents 
             iconSize={this.state.iconSize} 
             getLocation={this.getLocation}
             userLatitude={this.state.userLatitude}
-            userLongitude={this.state.userLongitude} 
+            userLongitude={this.state.userLongitude}
+            isSideBarExpand={this.state.isSideBarExpand} 
           />
         </div>
         <GeoLocationErrorModal
           show={this.state.modalShow}
-          errorText={this.state.geoLocationErrorText}
+          geoErrorText={this.state.geoLocationErrorText}
           onHide={() => {this.handleModalShow(false)}}
         />
       </div>

@@ -5,6 +5,7 @@
   "homepage": ".",
   "dependencies": {
     "bootstrap": "^4.4.1",
+    "framer-motion": "^1.8.4",
     "i18next": "^19.1.0",
     "i18next-browser-languagedetector": "^4.0.1",
     "i18next-xhr-backend": "^3.2.2",
@@ -18,8 +19,7 @@
     "react-dom": "^16.12.0",
     "react-i18next": "^11.3.1",
     "react-icons": "^3.9.0",
-    "react-scripts": "0.9.5",
-    "react-transition-group": "^4.3.0"
+    "react-scripts": "0.9.5"
   },
   "devDependencies": {},
   "scripts": {
