@@ -8,6 +8,10 @@ html, body {
   min-height: 100%;
 }
 
+.navbar {
+  z-index: 1;
+}
+
 .top-nav-items {
   flex-direction: row;
 }
@@ -17,13 +21,28 @@ html, body {
   padding-left: .5rem;
 }
 
-.toogle-button {
+.side-navbar {
+  position: -webkit-fixed;
+  position: fixed;
+  width: 25%;
+  height: 70.66px;
+  z-index: 1;
+}
+
+
+.side-navbar-toogle-button {
+  height: 70.66px;
+  position: absolute;
+  left: 100%;
+}
+
+.side-navbar-expand-button {
   color: #495057;
   border: 1px solid #ced4da;
   border-radius: .25rem;
 }
 
-.refresh-button {
+.side-navbar-locate-button {
   color: #495057;
   background-color: #fff;
   background-clip: padding-box;
@@ -31,47 +50,56 @@ html, body {
   border-radius: .25rem;
 }
 
-.side-menu-area {
+.side-navbar-menu {
   margin-bottom: 16px;
 }
 
-.side-menu {
+.side-navbar-menu-content {
   max-height: 70vh;
   overflow-x: hidden;
   overflow-y : auto;
   -webkit-overflow-scrolling: touch;
 }
 
-.side-navbar {
+.side-navbar-content {
   position: -webkit-absolute;
   position: absolute;
   background-color: #f8f9fa;
-  padding: 16px;
-  z-index: 1;
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
-.map {
-  z-index: -1;
-  min-width: 100vh;
-  min-height: calc(100vh - 57px);
-  background-color: blanchedalmond;
+#map {
+  z-index: 0;
+  width: 100%;
+  height: calc(100vh - 56.66px);
 }
 
 @media (min-width: 1200px) { 
-  .side-navbar {
-      width: 25%;
+  .side-navbar-content {
+      width: 100%;
       max-height: calc(100vh - 56.66px);
       left: 0;
-      padding: 16px;
   }
 }
 
 @media (max-width: 1200px) {
-  .side-menu {
+  .side-navbar-menu-content {
     max-height: 50vh;
   }
 
   .side-navbar {
     width: 100%;
+  }
+
+  .side-navbar-content {
+    width: 100%;
+  }
+
+  .side-navbar-toogle-button {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1;
   }
 }
