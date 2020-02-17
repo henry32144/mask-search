@@ -872,7 +872,7 @@ class App extends Component {
         console.log(locationData);
         const lastUpdatedTime = this.state.lastUpdatedTime;
         if (locationData["results"].length > 0) {
-          lastUpdatedTime = locationData["results"][0]["update_time"];
+          lastUpdatedTime = locationData["results"][0]["updated_time"];
         }
         this.setState({
           locationData: locationData["results"],
