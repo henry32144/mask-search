@@ -2,7 +2,7 @@
 import React, { Component, useRef, useState} from 'react';
 import ReactDOMServer from "react-dom/server";
 
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 
 import '../css/App.css';
 import '../../node_modules/leaflet/dist/leaflet.css'
@@ -11,6 +11,8 @@ import '../../node_modules/rc-pagination/assets/index.css';
 import geoJsonData from '../../data/twCounty2010merge.geo.json';
 import tempResult from '../../data/temp_result.json';
 import countyRemaining from '../../data/county_remaining.json';
+
+//import { Map, TileLayer, Marker, Popup, GeoJSON, LayersControl } from 'react-leaflet'
 
 import Pagination from 'rc-pagination';
 import Nav from 'react-bootstrap/Nav';
@@ -98,22 +100,14 @@ class SearchButton extends React.Component {
 }
 
 function ExpandSideBarButton(props) {
-  const decoratedOnClick = useAccordionToggle(
-    props.eventKey, 
-    () => props.toogleAccordian()
-  );
   return (
-    <Button variant="light" className="side-navbar-expand-button" type="button" onClick={decoratedOnClick}>
+    <Button variant="light" className="side-navbar-expand-button" type="button" onClick={props.toogleAccordian}>
       {props.isAccordianOpen ? <FaAngleDoubleUp size={props.iconSize}/> : <FaAngleDoubleDown size={props.iconSize}/>} {props.children}
     </Button>
   );
 }
 
 function CustomTypeahead(props) {
-  const decoratedOnClick = useAccordionToggle(
-    props.eventKey,
-    () => props.toogleAccordian()
-  );
   return (
       <Typeahead
         id="id"
@@ -125,7 +119,7 @@ function CustomTypeahead(props) {
           if (selected != null && selected.length > 0) {
             props.onSearchSelected(selected);
             if (props.isAccordianOpen === false) {
-              decoratedOnClick();
+              props.toogleAccordian();
             }
           }
         }}
@@ -187,49 +181,46 @@ class SideMenu extends Component {
     super(props);
     this.state = {
       pageSize: 20,
-      currentPage: 1,
+      currentPage: this.props.currentPage,
+      indexStart: 0,
+      indexEnd: 0,
     }
 
     this.pageOnChange = this.pageOnChange.bind(this);
   }
 
   pageOnChange(page) {
-    console.log(page);
-    this.setState({
-      currentPage: page,
-    });
+    var indexStart = (page - 1) * this.state.pageSize;
+    var indexEnd = indexStart + this.state.pageSize;
+    this.props.setCurrentIndex(indexStart, indexEnd, page);
   }
 
   listItemOnClick = param => e => {
     // param is the argument you passed to the function
     // e is the event object that returned
+    this.props.toogleAccordian();
   };
 
 
   render() {
     var items = this.props.locationData;
-    var indexStart = (this.state.currentPage - 1) * this.state.pageSize
-    var indexEnd = indexStart + this.state.pageSize
-    var listItems = null;
-    if (items.length > 0) {
-      listItems = items.slice(indexStart, indexEnd).map((item) => 
-        <ListGroup.Item action key={item["code"]} onClick={this.listItemOnClick(item["code"])}>
-          <p className="font-weight-bold">
-            {item["name"]}
-            <br/>
-            <span className="font-weight-light">
-            {item["location"]}
-            <br/>
-            成人口罩剩餘: {item["adult_remaining"]}<br/>兒童口罩剩餘: {item["child_remaining"]}
-            </span>
-          </p>
-          <a href={"http://maps.google.com.tw/maps?q=" + item["name"] + " " + item["location"]} 
-            target="_blank" rel="noopener noreferrer">用Google map開啟</a>
-        </ListGroup.Item>
-      );
-    } else {
-      listItems = null
-    }
+    var indexStart = (this.props.currentPage - 1) * this.state.pageSize;
+    var indexEnd = indexStart + this.state.pageSize;
+    var listItems = items.slice(indexStart, indexEnd).map((item) => 
+      <ListGroup.Item action key={item["code"]} onClick={this.listItemOnClick(item["code"])}>
+        <p className="font-weight-bold">
+          {item["name"]}
+          <br/>
+          <span className="font-weight-light">
+          {item["location"]}
+          <br/>
+          成人口罩剩餘: {item["adult_remaining"]}<br/>兒童口罩剩餘: {item["child_remaining"]}
+          </span>
+        </p>
+        <a href={"http://maps.google.com.tw/maps?q=" + item["name"] + " " + item["location"]} 
+          target="_blank" rel="noopener noreferrer">用Google map開啟</a>
+      </ListGroup.Item>
+    );
     return (
       <div>
         <ListGroup className="side-navbar-menu-content">
@@ -238,7 +229,7 @@ class SideMenu extends Component {
         <Pagination 
           className="side-navbar-menu-pagination"
           onChange={this.pageOnChange} 
-          current={this.state.currentPage} 
+          current={this.props.currentPage} 
           total={items.length}
           pageSize={this.state.pageSize}
         />
@@ -293,7 +284,9 @@ class SideNavBar extends Component {
         value = this.textConvert(value);
         this.props.setLoading(true);
         this.props.queryLocation(value).then(() => {
-            this.toogleAccordian();
+            if (this.state.isAccordianOpen === false) {
+              this.toogleAccordian();
+            }
           }
         );
       } else {
@@ -320,53 +313,68 @@ class SideNavBar extends Component {
           closed: { opacity: 0.5, x: "-100%" },
         }}
       >
-      <div className="side-navbar-content">
-        <Accordion>
-          <Form className="py-3 d-flex justify-content-center">
-            <InputGroup>
-              {/* <CustomTypeahead 
-                eventKey="0"
-                options={options} 
-                selected={this.state.selected}
-                onSearchSelected={this.onSearchSelected}
-                isAccordianOpen={this.state.isAccordianOpen}
-                toogleAccordian={this.toogleAccordian} /> */}
-              <FormControl 
-                type="text" 
-                ref={this.textInput}
-                placeholder="以店名或縣市來搜尋"/>
-              <InputGroup.Append>
-                {
-                  /* TODO:
-                  <LocateButton iconSize={this.props.iconSize} onClick={this.props.getLocation}/> 
-                  */
-                }
-                <SearchButton 
+        <div className="side-navbar-content">
+          <motion.header
+            initial={false}
+            onClick={this.toogleAccordian}
+          />
+            <Form className="py-3 d-flex justify-content-center">
+              <InputGroup>
+                {/* <CustomTypeahead 
                   eventKey="0"
-                  iconSize={this.props.iconSize} 
-                  onClick={this.onSearchButtonClicked}
-                  />
-              </InputGroup.Append>
-            </InputGroup>
-            <ExpandSideBarButton 
-              eventKey="0" 
-              iconSize={this.props.iconSize} 
-              toogleAccordian={this.toogleAccordian}
-              isAccordianOpen={this.state.isAccordianOpen}
-              />
-          </Form>
-          <Accordion.Collapse eventKey="0">
-            <div className="side-navbar-menu">
-              <p>伺服器資料最後更新時間: {new Date().toLocaleTimeString()}</p>
-              <SideMenu 
-                eventKey="0"
-                locationData={this.props.locationData}
+                  options={options} 
+                  selected={this.state.selected}
+                  onSearchSelected={this.onSearchSelected}
+                  isAccordianOpen={this.state.isAccordianOpen}
+                  toogleAccordian={this.toogleAccordian} /> */}
+                <FormControl 
+                  type="text" 
+                  ref={this.textInput}
+                  placeholder="以店名或縣市來搜尋"/>
+                <InputGroup.Append>
+                  {
+                    /* TODO:
+                    <LocateButton iconSize={this.props.iconSize} onClick={this.props.getLocation}/> 
+                    */
+                  }
+                  <SearchButton 
+                    iconSize={this.props.iconSize} 
+                    onClick={this.onSearchButtonClicked}
+                    />
+                </InputGroup.Append>
+              </InputGroup>
+              <ExpandSideBarButton 
+                iconSize={this.props.iconSize} 
                 toogleAccordian={this.toogleAccordian}
-              />
-            </div>
-          </Accordion.Collapse>
-        </Accordion>
-      </div>
+                isAccordianOpen={this.state.isAccordianOpen}
+                />
+            </Form>
+            <AnimatePresence initial={false}>
+              {this.state.isAccordianOpen && (
+              <motion.section
+                  key="content"
+                  initial="collapsed"
+                  animate="open"
+                  exit="collapsed"
+                  variants={{
+                    open: {opacity: 1, height: "auto" },
+                    collapsed: { opacity: 0, height: 0}
+                  }}
+                  transition={{ duration: 0.8, ease: [0.04, 0.62, 0.23, 0.98]}}
+                >
+                <div className="side-navbar-menu">
+                  <p>伺服器資料最後更新時間: {new Date().toLocaleTimeString()}</p>
+                  <SideMenu 
+                    locationData={this.props.locationData}
+                    toogleAccordian={this.toogleAccordian}
+                    setCurrentIndex={this.props.setCurrentIndex}
+                    currentPage={this.props.currentPage}
+                  />
+                </div>
+              </motion.section>
+              )}
+          </AnimatePresence>
+        </div>
       </motion.div>
     )
   }
@@ -385,6 +393,25 @@ function CountyMaskPopup(props) {
         <td>{props.childMask}</td>
       </tr>
     </Table>
+  )
+}
+
+function StorePopup(props) {
+  return (
+    <div>
+      <p>{props.name}</p>
+      <p>{props.location}</p>
+      <Table striped bordered responsive size="sm" className="store-popup">
+        <tr>
+          <th>成人口罩剩餘</th>
+          <th>兒童口罩剩餘</th>
+        </tr>
+        <tr>
+          <td>{props.adultMask}</td>
+          <td>{props.childMask}</td>
+        </tr>
+      </Table>
+    </div>
   )
 }
 
@@ -412,11 +439,7 @@ class Map extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      markerStyle: L.AwesomeMarkers.icon({
-        prefix: 'fa',
-        icon: 'circle',
-        markerColor: 'red'
-      }), 
+      mapIsReady: false,
       overlayMaps: {},
     }
     this.colors = ['#d7191c', '#fdae61', '#ffffbf', '#a6d96a', '#1a9641'];
@@ -503,14 +526,17 @@ class Map extends React.Component {
         geoJsonLayer.bindPopup(this.showPopup);
         var overlayLayers = L.layerGroup([geoJsonLayer]);
         overlayLayers.addTo(this.state.map);
-
+        var overlayMaps = {
+          "縣市剩餘數量": overlayLayers
+        };
+        var mapControlPanel = L.control.layers(null, overlayMaps)
+        mapControlPanel.addTo(this.state.map);
         this.setState({
-          overlayMaps: {
-            "縣市剩餘數量": overlayLayers,
-          }
+          mapIsReady: true,
+          mapControlPanel: mapControlPanel,
+          overlayLayers: overlayLayers,
+          overlayMaps: overlayMaps
         }, () => {
-          var mapControlPanel = L.control.layers(null, this.state.overlayMaps)
-          mapControlPanel.addTo(this.state.map);
           this.props.setLoading(false)
         });
       })
@@ -543,41 +569,142 @@ class Map extends React.Component {
           this.removeControl(legend);
       } 
     });
-
-    L.marker([this.props.userLatitude, this.props.userLongitude],
-       {icon: this.state.markerStyle}).addTo(map);
   }
 
   render() {
-    return <div id="map"></div>
-  }
-}
-
-class MainContents extends Component {
-  render() {
-    return (
-      <div>
-        <SideNavBar 
-          iconSize={this.props.iconSize}
-          getLocation={this.props.getLocation}
-          isSideBarExpand={this.props.isSideBarExpand}
-          locationData={this.props.locationData}
-          setLoading={this.props.setLoading}
-          queryLocation={this.props.queryLocation}
-          handleError={this.props.handleError}
-        />
-        <Map
-          userLatitude={this.props.userLatitude}
-          userLongitude={this.props.userLongitude}
-          setLoading={this.props.setLoading}
-          locationData={this.props.locationData}
-          countyRemaining={this.props.countyRemaining}
-          getCountyRemaining={this.props.getCountyRemaining}
-        />
-      </div>
+    return (<div id="map"></div>
     )
   }
 }
+
+// function getGeoJSONComponent(json) {
+//   return(
+//       <GeoJson
+//           data={json}
+//           color='red'
+//           fillColor='green'
+//           weight={1}
+//           onEachFeature={onEachFeature} />
+//   );
+// }
+
+// function onEachFeature(feature, layer) {
+//   if (feature.properties && feature.properties.name) {
+//       layer.bindPopup(feature.properties.name);
+//   }
+// }
+
+// class MapContent extends React.Component {
+//   constructor(props) {
+//     super(props);
+//     this.state = {
+//       geoJSONLayerKey: "geojson",
+//       dataIsReady: false,
+//     }
+//     this.colors = ['#d7191c', '#fdae61', '#ffffbf', '#a6d96a', '#1a9641'];
+//     this.valueDegrees = [0, 5000, 10000, 15000, 20000]
+//     this.getColor = this.getColor.bind(this);
+//     this.drawStyle = this.drawStyle.bind(this);
+//     this.showPopup = this.showPopup.bind(this);
+//     this.setCountiesLegend = this.setCountiesLegend.bind(this);
+//   }
+
+//   componentDidMount() {
+//     this.props.getCountyRemaining().then(
+//       this.setState({geoJSONLayerKey: "geojson-updated",
+//       dataIsReady: true
+//     })
+//     )
+//   }
+
+//   getColor(d) {
+//     return d > this.valueDegrees[4] ? this.colors[4] :
+//            d > this.valueDegrees[3]  ? this.colors[3] :
+//            d > this.valueDegrees[2]  ? this.colors[2] :
+//            d > this.valueDegrees[1]  ? this.colors[1] :
+//            this.colors[0];
+//   }
+  
+//   drawStyle(feature) {
+//     var countyName = feature.properties.COUNTYNAME.substring(0, 2);
+//     var data = -1
+//     if (this.props.countyRemaining != null) {
+//       data = this.props.countyRemaining[countyName]["adult_remaining"] + 
+//                   this.props.countyRemaining[countyName]["child_remaining"];
+//     }
+//     return {
+//         fillColor: this.getColor(data),
+//         weight: 2,
+//         opacity: 1,
+//         color: 'white',
+//         dashArray: '3',
+//         fillOpacity: 0.7
+//     };
+//   }
+
+//   showPopup(layer) {
+//     var countyName = layer.feature.properties.COUNTYNAME.substring(0, 2);
+//     var adultData = -1;
+//     var childData = -1;
+//     if (this.props.countyRemaining != null) {
+//       adultData = this.props.countyRemaining[countyName]["adult_remaining"];
+//       childData = this.props.countyRemaining[countyName]["child_remaining"];
+//     }
+//     console.log(childData)
+//     return (ReactDOMServer.renderToString(
+//       <CountyMaskPopup
+//         countyName={layer.feature.properties.COUNTYNAME}
+//         adultMask={adultData}
+//         childMask={childData}
+//       />
+//     ))
+//   }
+
+//   setCountiesLegend(map) {
+//     return (ReactDOMServer.renderToString(
+//       <CountyMaskLegend
+//         valueDegrees={this.valueDegrees}
+//         getColor={this.getColor}
+//       />
+//     ))
+//   }
+
+//   render() {
+//     const position = [this.props.userLatitude, this.props.userLongitude]
+//     return (
+//         <Map 
+//           className="map"
+//           center= {position}
+//           zoom={8}
+//           zoomControl={false}
+//           tap={true}
+//           dragging={true}>
+//         <TileLayer
+//           attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
+//           url='https://{s}.tile.osm.org/{z}/{x}/{y}.png'
+//         />
+//           <LayersControl position="topright">
+            
+//               {this.state.dataIsReady ? 
+//                 <LayersControl.Overlay checked name="縣市剩餘數量">
+//                   <GeoJSON 
+//                     key={this.state.geoJSONLayerKey}
+//                     data={geoJsonData}
+//                     style={this.drawStyle}
+//                     bindPopup={this.showPopup}
+//                     onEachFeature={onEachFeature}
+//                     >
+//                   </GeoJSON>
+//                 </LayersControl.Overlay>
+//                : null
+//               }
+            
+//           </LayersControl>
+//       </Map>
+//     )
+//   }
+//}
+
 
 function MainLoadingIndicator(props) {
   if (!props.isLoading) {
@@ -604,7 +731,12 @@ class App extends Component {
       modalErrorTitle : '喔~發生錯誤',
       modalErrorText : '',
       locationData: [],
+      markers: [],
+      markerLayers: L.layerGroup(),
       countyRemaining: null,
+      currentPage: 1,
+      indexStart: 0,
+      indexEnd: 19,
     };
     this.toggleSideBarExpand = this.toggleSideBarExpand.bind(this);
     this.handleModalShow = this.handleModalShow.bind(this);
@@ -614,6 +746,7 @@ class App extends Component {
     this.queryLocation = this.queryLocation.bind(this);
     this.getCountyRemaining = this.getCountyRemaining.bind(this);
     this.handleListItemClick = this.handleListItemClick.bind(this);
+    this.setCurrentIndex = this.setCurrentIndex.bind(this);
   }
 
   toggleSideBarExpand() {
@@ -669,6 +802,8 @@ class App extends Component {
         console.log(countyRemaining)
         this.setState({
           countyRemaining: countyRemaining
+        }, () => {
+          return true
         })
       }
     }
@@ -705,6 +840,77 @@ class App extends Component {
 
   }
 
+  showStorePopup(layer) {
+    var countyName = layer.feature.properties.COUNTYNAME.substring(0, 2);
+    var adultData = -1;
+    var childData = -1;
+    if (this.props.countyRemaining != null) {
+      adultData = this.props.countyRemaining[countyName]["adult_remaining"];
+      childData = this.props.countyRemaining[countyName]["child_remaining"];
+    }
+    return (ReactDOMServer.renderToString(
+      <StorePopup
+        countyName={layer.feature.properties.COUNTYNAME}
+        adultMask={adultData}
+        childMask={childData}
+      />
+    ))
+  }
+
+  setUpMarkers() {
+    const markers = this.state.locationData.slice(this.state.indexStart, this.state.indexEnd).map((item) => 
+        L.marker([item["latitude"], item["longitude"]],
+        {icon: L.AwesomeMarkers.icon({
+          prefix: 'fa',
+          icon: 'circle',
+          markerColor: 'red'
+        })}).bindPopup(
+          ReactDOMServer.renderToString(
+            <StorePopup
+              name={item["name"]}
+              location={item["location"]}
+              adultMask={item["adult_remaining"]}
+              childMask={item["child_remaining"]}
+            />
+          )
+        ));
+    // for (var i = 0 ; i< markers.length; i++)  {
+    //   this.state.markerLayers.addLayer(markers[i]);
+    // }
+    this.setState({
+      markers: markers
+    })
+  }
+
+  setCurrentIndex(indexStart, indexEnd, currentPage) {
+    console.log(indexStart)
+    console.log(indexEnd)
+    // const markerLayers = this.state.markerLayers
+    // markerLayers.clearLayers()
+    const markers = this.state.locationData.slice(indexStart, indexEnd).map((item) => 
+        L.marker([item["latitude"], item["longitude"]],
+        {icon: L.AwesomeMarkers.icon({
+          prefix: 'fa',
+          icon: 'circle',
+          markerColor: 'red'
+        })}).bindPopup(
+          ReactDOMServer.renderToString(
+            <StorePopup
+              name={item["name"]}
+              location={item["location"]}
+              adultMask={item["adult_remaining"]}
+              childMask={item["child_remaining"]}
+            />
+          )
+        ));
+    this.setState({
+      indexStart: indexStart,
+      indexEnd: indexEnd,
+      currentPage: currentPage,
+      markers: markers,
+    })
+  }
+
   render() {
     return (
       <div className="app">
@@ -718,7 +924,7 @@ class App extends Component {
           />
         </div>
         <div className="main-contents">
-          <MainContents 
+          {/* <MainContents 
             setLoading={this.setLoading}
             getLocation={this.getLocation}
             queryLocation={this.queryLocation}
@@ -730,6 +936,34 @@ class App extends Component {
             countyRemaining={this.state.countyRemaining}
             getCountyRemaining={this.getCountyRemaining}
             handleError={this.handleError}
+            setCurrentIndex={this.setCurrentIndex}
+            currentPage={this.state.currentPage}
+            indexStart={this.state.indexStart}
+            indexEnd={this.state.indexEnd}
+            markers={this.state.markers}
+            markerLayers={this.state.markerLayers}
+          /> */}
+          <SideNavBar 
+          iconSize={this.state.iconSize}
+          getLocation={this.getLocation}
+          isSideBarExpand={this.state.isSideBarExpand}
+          locationData={this.state.locationData}
+          setLoading={this.setLoading}
+          queryLocation={this.queryLocation}
+          handleError={this.handleError}
+          setCurrentIndex={this.setCurrentIndex}
+          currentPage={this.state.currentPage}
+          />
+          <Map
+            userLatitude={this.state.userLatitude}
+            userLongitude={this.state.userLongitude}
+            setLoading={this.setLoading}
+            locationData={this.state.locationData}
+            countyRemaining={this.state.countyRemaining}
+            getCountyRemaining={this.getCountyRemaining}
+            indexStart={this.state.indexStart}
+            indexEnd={this.state.indexEnd}
+            markerLayers={this.state.markerLayers}
           />
         </div>
         <ErrorModal
