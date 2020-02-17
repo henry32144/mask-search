@@ -6,12 +6,8 @@
   "dependencies": {
     "bootstrap": "^4.4.1",
     "framer-motion": "^1.8.4",
-    "i18next": "^19.1.0",
-    "i18next-browser-languagedetector": "^4.0.1",
-    "i18next-xhr-backend": "^3.2.2",
     "leaflet": "^1.6.0",
     "leaflet.awesome-markers": "^2.0.5",
-    "papaparse": "^5.1.1",
     "rc-pagination": "^1.21.0",
     "react": "^16.12.0",
     "react-addons-create-fragment": "^15.6.2",
@@ -19,7 +15,6 @@
     "react-bootstrap-navbar-offcanvas": "^1.0.3",
     "react-bootstrap-typeahead": "^3.4.7",
     "react-dom": "^16.12.0",
-    "react-i18next": "^11.3.1",
     "react-icons": "^3.9.0",
     "react-leaflet": "^2.6.1",
     "react-scripts": "0.9.5"

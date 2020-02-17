@@ -1,5 +1,5 @@
 
-import React, { Component, useRef, useState} from 'react';
+import React, { Component } from 'react';
 import ReactDOMServer from "react-dom/server";
 
 import { motion, AnimatePresence } from "framer-motion"
@@ -9,9 +9,6 @@ import '../../node_modules/leaflet/dist/leaflet.css'
 import '../../node_modules/rc-pagination/assets/index.css';
 // Json data
 import geoJsonData from '../../data/twCounty2010merge.geo.json';
-import tempResult from '../../data/temp_result.json';
-import countyRemaining from '../../data/county_remaining.json';
-
 //import { Map, TileLayer, Marker, Popup, GeoJSON, LayersControl } from 'react-leaflet'
 
 import Pagination from 'rc-pagination';
@@ -26,8 +23,6 @@ import Spinner from 'react-bootstrap/Spinner';
 import Modal from 'react-bootstrap/Modal';
 import Table from 'react-bootstrap/Table';
 import FormControl from 'react-bootstrap/FormControl';
-import Accordion from 'react-bootstrap/Accordion';
-import { useAccordionToggle } from 'react-bootstrap/AccordionToggle';
 import {FaGithub, FaLinkedin, FaBars, FaInfoCircle, FaLocationArrow, FaAngleDoubleDown, FaAngleDoubleUp, FaSearch, } from 'react-icons/fa';
 import {Typeahead} from 'react-bootstrap-typeahead';
 import L from 'leaflet';
@@ -61,18 +56,56 @@ function ErrorModal(props) {
   );
 }
 
+function InfoModal(props) {
+  return (
+    <Modal
+      {...props}
+      size="sm"
+      aria-labelledby="contained-modal-title-vcenter"
+      centered
+    >
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          關於
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <p>
+          資料每半個小時更新一次，
+          資料來源為<a target="_blank" rel="noopener noreferrer" href="http://data.nhi.gov.tw/Datasets/Download.ashx?rid=A21030000I-D50001-001&l=https://data.nhi.gov.tw/resource/mask/maskdata.csv">政府提供的口罩資料</a>。
+        </p>
+        <p>
+          由於在下2/19就要入伍服義務役了，有些功能像是搜尋後在地圖上顯示圖標等等的來不及實作，請見諒。
+          目前伺服器端和資料庫皆是使用免費的雲端平台，有時候可能會有不穩定的情形。
+        </p>
+          對於原始碼有興趣的訪客可以點網頁右上角的Github貓咪圖示。
+        <br/>
+        <p className="font-weight-bold">
+          注意: 此網站的資料僅供參考。
+        </p>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button onClick={props.onHide}>Close</Button>
+      </Modal.Footer>
+    </Modal>
+  );
+}
+
 class TopNavBar extends Component {
   render() {
+    const setModalShow = () => {
+      this.props.handleInfoModalShow(true)
+    };
     return (
       <Navbar bg="dark" variant="dark" expand="lg">
         <Button variant="dark" type="button" className="side-navbar-toogle-button" onClick={this.props.toggleSideBarExpand}>
           <FaBars size={this.props.iconSize}/>
         </Button>
-        <Navbar.Brand href="#home" className="topnav-brand">口罩地圖</Navbar.Brand>
+        <Navbar.Brand className="topnav-brand">口罩地圖</Navbar.Brand>
           <Nav className="ml-auto top-nav-items">
-            <Nav.Link href="#info"><FaInfoCircle size={this.props.iconSize}/></Nav.Link> 
-            <Nav.Link href="#github"><FaGithub size={this.props.iconSize}/></Nav.Link>
-            <Nav.Link href="#linkedin"><FaLinkedin size={this.props.iconSize}/></Nav.Link>
+            <Nav.Link href="" onClick={setModalShow}><FaInfoCircle size={this.props.iconSize}/></Nav.Link> 
+            <Nav.Link href="https://github.com/henry32144/mask-search" target="_blank" rel="noopener noreferrer"><FaGithub size={this.props.iconSize}/></Nav.Link>
+            <Nav.Link href="https://www.linkedin.com/in/cheng-han-wu-0803/?locale=en_US" target="_blank" rel="noopener noreferrer"><FaLinkedin size={this.props.iconSize}/></Nav.Link>
           </Nav>
       </Navbar>
     )
@@ -198,7 +231,7 @@ class SideMenu extends Component {
   listItemOnClick = param => e => {
     // param is the argument you passed to the function
     // e is the event object that returned
-    this.props.toogleAccordian();
+    //this.props.toogleAccordian();
   };
 
 
@@ -363,7 +396,7 @@ class SideNavBar extends Component {
                   transition={{ duration: 0.8, ease: [0.04, 0.62, 0.23, 0.98]}}
                 >
                 <div className="side-navbar-menu">
-                  <p>伺服器資料最後更新時間: {new Date().toLocaleTimeString()}</p>
+                  <p>伺服器資料最後更新時間: {new Date(this.props.lastUpdatedTime).toString()}</p>
                   <SideMenu 
                     locationData={this.props.locationData}
                     toogleAccordian={this.toogleAccordian}
@@ -723,7 +756,8 @@ class App extends Component {
     super(props);
     this.state = {
       iconSize : 20,
-      modalShow : false,
+      errorModalShow : false,
+      infoModalShow: false,
       isLoading : true,
       isSideBarExpand: true,
       userLatitude : 23.583234,
@@ -737,9 +771,12 @@ class App extends Component {
       currentPage: 1,
       indexStart: 0,
       indexEnd: 19,
+      lastUpdatedTime: "XX",
     };
+
     this.toggleSideBarExpand = this.toggleSideBarExpand.bind(this);
-    this.handleModalShow = this.handleModalShow.bind(this);
+    this.handleErrorModalShow = this.handleErrorModalShow.bind(this);
+    this.handleInfoModalShow = this.handleInfoModalShow.bind(this);
     this.getLocation = this.getLocation.bind(this);
     this.handleError = this.handleError.bind(this);
     this.setLoading = this.setLoading.bind(this);
@@ -755,8 +792,12 @@ class App extends Component {
     }));
   }
 
-  handleModalShow(show) {
-    this.setState({modalShow: show});
+  handleErrorModalShow(show) {
+    this.setState({errorModalShow: show});
+  }
+
+  handleInfoModalShow(show) {
+    this.setState({infoModalShow: show});
   }
 
   setLoading(value) {
@@ -768,7 +809,7 @@ class App extends Component {
       modalErrorText: errorText
     },
     () => {
-      this.handleModalShow(true);
+      this.handleErrorModalShow(true);
     });
   }
 
@@ -796,12 +837,17 @@ class App extends Component {
 
   async getCountyRemaining() {
     try {
-      const response = await fetch("http://127.0.0.1:5000/get-all/county-remaining", {method:'GET'})
+      const response = await fetch("https://mask-search.herokuapp.com/get-all/county-remaining", {method:'GET'})
       if (response.ok) {
         const countyRemaining = await response.json();
         console.log(countyRemaining)
+        const lastUpdatedTime = this.state.lastUpdatedTime;
+        if (countyRemaining != null) {
+          lastUpdatedTime = countyRemaining["臺北"]["updated_time"]
+        }
         this.setState({
-          countyRemaining: countyRemaining
+          countyRemaining: countyRemaining,
+          lastUpdatedTime: lastUpdatedTime
         }, () => {
           return true
         })
@@ -814,26 +860,31 @@ class App extends Component {
 
   async queryLocation(words) {
     console.log('queryLocation')
-    this.setState({
-      locationData: tempResult["results"]
-    }, () => {
-      this.setLoading(false);
-    })
-    // try {
-    //   const response = await fetch("http://127.0.0.1:5000/get/" + words, {method:'GET'})
-    //   if (response.ok) {
-    //     const locationData = await response.json();
-    //     console.log(locationData)
-    //     this.setState({
-    //       locationData: locationData["results"]
-    //     }, () => {
-    //       this.setLoading(false);
-    //     })
-    //   }
-    // }
-    // catch (err) {
-    //   console.log('fetch failed', err);
-    // }
+    // this.setState({
+    //   locationData: tempResult["results"]
+    // }, () => {
+    //   this.setLoading(false);
+    // })
+    try {
+      const response = await fetch("https://mask-search.herokuapp.com/get/" + words, {method:'GET'})
+      if (response.ok) {
+        const locationData = await response.json();
+        console.log(locationData);
+        const lastUpdatedTime = this.state.lastUpdatedTime;
+        if (locationData["results"].length > 0) {
+          lastUpdatedTime = locationData["results"][0]["update_time"];
+        }
+        this.setState({
+          locationData: locationData["results"],
+          lastUpdatedTime: lastUpdatedTime
+        }, () => {
+          this.setLoading(false);
+        })
+      }
+    }
+    catch (err) {
+      console.log('fetch failed', err);
+    }
   }
 
   handleListItemClick() {
@@ -920,6 +971,7 @@ class App extends Component {
         <div className="top-navbar">
           <TopNavBar
             iconSize={this.state.iconSize}
+            handleInfoModalShow={this.handleInfoModalShow}
             toggleSideBarExpand={this.toggleSideBarExpand}
           />
         </div>
@@ -944,15 +996,16 @@ class App extends Component {
             markerLayers={this.state.markerLayers}
           /> */}
           <SideNavBar 
-          iconSize={this.state.iconSize}
-          getLocation={this.getLocation}
-          isSideBarExpand={this.state.isSideBarExpand}
-          locationData={this.state.locationData}
-          setLoading={this.setLoading}
-          queryLocation={this.queryLocation}
-          handleError={this.handleError}
-          setCurrentIndex={this.setCurrentIndex}
-          currentPage={this.state.currentPage}
+            iconSize={this.state.iconSize}
+            getLocation={this.getLocation}
+            isSideBarExpand={this.state.isSideBarExpand}
+            locationData={this.state.locationData}
+            setLoading={this.setLoading}
+            queryLocation={this.queryLocation}
+            handleError={this.handleError}
+            setCurrentIndex={this.setCurrentIndex}
+            currentPage={this.state.currentPage}
+            lastUpdatedTime={this.state.lastUpdatedTime}
           />
           <Map
             userLatitude={this.state.userLatitude}
@@ -966,11 +1019,14 @@ class App extends Component {
             markerLayers={this.state.markerLayers}
           />
         </div>
+        <InfoModal
+          show={this.state.infoModalShow}
+          onHide={() => {this.handleInfoModalShow(false)}}/>
         <ErrorModal
-          show={this.state.modalShow}
+          show={this.state.errorModalShow}
           modalerrortext={this.state.modalErrorText}
           modalerrortitle={this.state.modalErrorTitle}
-          onHide={() => {this.handleModalShow(false)}}
+          onHide={() => {this.handleErrorModalShow(false)}}
         />
       </div>
     );
